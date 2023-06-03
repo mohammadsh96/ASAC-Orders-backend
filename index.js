@@ -166,14 +166,14 @@ app.post('/orders', validateToken, async (req, res) => {
     };
 
     const newOrder = await Order.create(order);
-    let msg= `السيد/ه المحترم/ه ${order.name}❤ : طلبك هو  :  ${order.food}  ----  عدد :  ${order.quantity} ----- بقيمة : ${order.price} دينار`
-    clientz.messages
-        .create({
-           from: 'whatsapp:+14155238886',
-           body: JSON.stringify(msg),
-           to: 'whatsapp:+962795956190'
-         })
-        .then(message => console.log(message));
+    // let msg= `السيد/ه المحترم/ه ${newOrder.name}❤ : طلبك هو  :  ${newOrder.food}  ----  عدد :  ${newOrder.quantity} ----- بقيمة : ${newOrder.price} دينار`
+    // clientz.messages
+    //     .create({
+    //        from: 'whatsapp:+14155238886',
+    //        body: JSON.stringify(msg),
+    //        to: 'whatsapp:+962795956190'
+    //      })
+    //     .then(message => console.log(message));
   
     res.status(201).json({ message: 'Order created successfully' });
   } catch (err) {
@@ -184,7 +184,7 @@ app.post('/orders', validateToken, async (req, res) => {
 
 
 // Get All Orders
-app.get('/orders', validateToken, async (req, res) => {
+app.get('/orders', async (req, res) => {
   try {
     // const userId = req.userId;
 
