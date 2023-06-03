@@ -1,169 +1,173 @@
 const express = require('express');
-const mongodb = require('mongodb');
-const { ObjectId } = require('mongodb');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const cors =require('cors')
-const { body, validationResult } = require('express-validator');
-const axios = require('axios');
-const accountSid = process.env.TWILIO_ACCOUNT_SID || 'AC9a8cbf151e473a3b6f795591d14c8e3f';
-const authToken = process.env.TWILIO_AUTH_TOKEN || '5561c3bd995e2e60c8c4e69772308d81' ;
+const mongoose = require('mongoose');
+require('dotenv').config()
+const cors = require('cors');
+const accountSid = process.env.TWILIO_ACCOUNT_SID ;
+const authToken = process.env.TWILIO_AUTH_TOKEN ;
 const clientz = require('twilio')(accountSid, authToken);
+console.log(accountSid ,authToken);
+// const { body, validationResult } = require('express-validator');
 const app = express();
-app.use(cors())
-const port = 3000;
-
-// MongoDB connection details
-const mongoURL = 'mongodb+srv://mohammadsh:PZqQNe0yM9qtXAWx@mohammadshcluster.bjrwqjp.mongodb.net/?retryWrites=true&w=majority';
-
-// Middleware
 app.use(express.json());
+app.use(cors());
 
-// Routes
+// Connect to MongoDB
+mongoose.connect('mongodb+srv://mohammadsh:PZqQNe0yM9qtXAWx@mohammadshcluster.bjrwqjp.mongodb.net/?retryWrites=true&w=majority', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
 
-// Signup
-app.post(
-  '/signup',
-  [
-    body('name').notEmpty().withMessage('Name is required'),
-    body('email').isEmail().withMessage('Invalid email format'),
-    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
-  ],
-  async (req, res) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-      }
+const db = mongoose.connection;
+db.on('error', console.error.bind(console, 'MongoDB connection error:'));
 
-      const { name, email, password,phone } = req.body;
-      const hashedPassword = await bcrypt.hash(password, 10);
+// User Schema
+const userSchema = new mongoose.Schema({
+  name: String,
+  email: String,
+  password: String,
+});
+const User = mongoose.model('User', userSchema);
 
-      const client = await mongodb.MongoClient.connect(mongoURL);
-      const db = client.db();
+// Order Schema
+const orderSchema = new mongoose.Schema({
+  name: String,
+  food: String,
+  quantity: Number,
+  price: Number,
+  paymentStatus: {
+    type: String,
+    default: 'unPaid'
+  },
+  approved: {
+    type: Boolean,
+    default: false
+  },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+});
 
-      const existingUser = await db.collection('users').findOne({ email });
-      if (existingUser) {
-        return res.status(400).json({ message: 'User with this email already exists' });
-      }
+const Order = mongoose.model('Order', orderSchema);
 
-      const user = { name, email, password: hashedPassword ,phone};
-      await db.collection('users').insertOne(user);
+// Helper function to validate email format
+function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
 
-      client.close();
-
-      res.status(201).json({ message: 'User created successfully' });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: 'Error creating user' });
-    }
+// Middleware to validate token
+function validateToken(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Token is required' });
   }
-);
 
-// Signin
-app.post(
-  '/signin',
-  [
-    body('email').isEmail().withMessage('Invalid email format'),
-    body('password').notEmpty().withMessage('Password is required'),
-  ],
-  async (req, res) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-      }
+  const token = authHeader.split(' ')[1];
 
-      const { email, password } = req.body;
-
-      const client = await mongodb.MongoClient.connect(mongoURL);
-      const db = client.db();
-
-      const user = await db.collection('users').findOne({ email });
-      if (!user) {
-        return res.status(401).json({ message: 'Invalid email or password' });
-      }
-
-      const passwordMatch = await bcrypt.compare(password, user.password);
-      if (!passwordMatch) {
-        return res.status(401).json({ message: 'Invalid email or password' });
-      }
-
-      const token = jwt.sign({ userId: user._id }, 'your-secret-key', { expiresIn: '1h' });
-
-      client.close();
-
-      res.json({ token , user});
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: 'Error signing in' });
-    }
-  }
-);
-
-// Middleware for authentication
-const authenticateUser = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1] || req.query.token;
-
-    if (!token) {
-      return res.status(401).json({ message: 'Authentication failed: Token not provided' });
-    }
-
-    const decoded = jwt.verify(token, 'your-secret-key');
-    req.user = { userId: decoded.userId };
-
+    const decodedToken = jwt.verify(token, 'secretKey');
+    req.userId = decodedToken.userId;
     next();
   } catch (err) {
-    console.error(err);
-    res.status(401).json({ message: 'Authentication failed: Invalid token' });
+    return res.status(401).json({ message: 'Invalid token' });
   }
-};
+}
 
+// Register User
+app.post('/signup', async (req, res) => {
+  console.log(req.body);
+  try {
+    const { name, email, password } = req.body;
 
-// Place Order
-app.post(
-    '/orders',
-    [
-      body('food').notEmpty().withMessage('Food is required'),
-      body('quantity').isInt({ min: 1 }).withMessage('Quantity must be a positive integer'),
-      body('price').isNumeric().withMessage('Price must be a number'),
-    ],
-    authenticateUser,
-    async (req, res) => {
-      try {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-          return res.status(400).json({ errors: errors.array() });
-        }
-  
-        const { food, quantity, price } = req.body;
-        const userId = req.user.userId;
-        
-  
-        const client = await mongodb.MongoClient.connect(mongoURL);
-        const db = client.db();
-  
-        const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
-        if (!user) {
-          return res.status(404).json({ message: 'User not found' });
-        }
-  
-        const order = {
-          name: user.name,
-          food,
-          quantity,
-          price,
-          paymentStatus: 'unPaid', // Set default payment status
-          approved: false, // Set default approval status
-          userId,
-        };
-  
-        const newOrder = await db.collection('orders').insertOne(order);
-        let msg= `السيد/ه المحترم/ه ${order.name}❤ : طلبك هو  :  ${order.food}  ----  عدد :  ${order.quantity} ----- بقيمة : ${order.price} دينار`
+    if (!name) {
+      return res.status(400).json({ errors: [{ type: 'field', msg: 'Name is required', path: 'name', location: 'body' }] });
+    }
 
-        client.close();
-        clientz.messages
+    if (!email || !isValidEmail(email)) {
+      return res.status(400).json({ errors: [{ type: 'field', msg: 'Invalid email format', path: 'email', location: 'body' }] });
+    }
+
+    if (!password) {
+      return res.status(400).json({ errors: [{ type: 'field', msg: 'Password is required', path: 'password', location: 'body' }] });
+    }
+
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      return res.status(400).json({ message: 'User already exists' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    console.log(name, email, password);
+
+    const user = new User({ name, email, password: hashedPassword });
+    await user.save();
+
+    res.status(201).json({ message: 'User registered successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error registering user' });
+  }
+});
+
+// Login User
+app.post('/signin', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !isValidEmail(email)) {
+      return res.status(400).json({ errors: [{ type: 'field', msg: 'Invalid email format', path: 'email', location: 'body' }] });
+    }
+
+    if (!password) {
+      return res.status(400).json({ errors: [{ type: 'field', msg: 'Password is required', path: 'password', location: 'body' }] });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: 'User not found' });
+    }
+
+    const isPasswordMatch = await bcrypt.compare(password, user.password);
+    if (!isPasswordMatch) {
+      return res.status(400).json({ message: 'Invalid password' });
+    }
+
+    const token = jwt.sign({ userId: user._id }, 'secretKey');
+    res.json({ token,user });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error logging in' });
+  }
+});
+
+// Create Order
+app.post('/orders', validateToken, async (req, res) => {
+  try {
+    
+    const { food, quantity, price } = req.body;
+    const userId = req.userId;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(400).json({ message: 'User not found' });
+    }
+
+    const order = {
+      name: user.name,
+      food,
+      quantity,
+      price,
+      paymentStatus: 'unPaid',
+      approved: false,
+      userId,
+    };
+
+    const newOrder = await Order.create(order);
+    let msg= `السيد/ه المحترم/ه ${order.name}❤ : طلبك هو  :  ${order.food}  ----  عدد :  ${order.quantity} ----- بقيمة : ${order.price} دينار`
+    clientz.messages
         .create({
            from: 'whatsapp:+14155238886',
            body: JSON.stringify(msg),
@@ -171,256 +175,173 @@ app.post(
          })
         .then(message => console.log(message));
   
-        res.status(201).json(newOrder);
-      } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Error placing order' });
-      }
-    }
-  );
-  
-  
-
-// Get User Orders
-app.get('/orders/user/:userId', authenticateUser, async (req, res) => {
-  try {
-    const userId = req.params.userId;
-
-    const client = await mongodb.MongoClient.connect(mongoURL);
-    const db = client.db();
-
-    const userOrders = await db.collection('orders').find({ userId }).toArray();
-
-    client.close();
-
-    res.json(userOrders);
+    res.status(201).json({ message: 'Order created successfully' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Error retrieving user orders' });
+    res.status(500).json({ message: 'Error creating order' });
   }
 });
+
 
 // Get All Orders
-app.get('/orders', async (req, res) => {
+app.get('/orders', validateToken, async (req, res) => {
   try {
-    const client = await mongodb.MongoClient.connect(mongoURL);
-    const db = client.db();
+    // const userId = req.userId;
 
-    const allOrders = await db.collection('orders').find().toArray();
-
-    client.close();
-
-    res.json(allOrders);
+    const orders = await Order.find();
+    res.json(orders);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Error retrieving all orders' });
+    res.status(500).json({ message: 'Error retrieving orders' });
   }
 });
-// Update Order
-// Update Order
-app.put('/orders/:orderId', authenticateUser, async (req, res) => {
-    try {
-      const { orderId } = req.params;
-      const { name, food, quantity, price, paymentStatus } = req.body;
-  
-      const token = req.headers.authorization.split(' ')[1];
-      const decodedToken = jwt.decode(token);
-      const userId = decodedToken.userId;
-  
-      const client = await mongodb.MongoClient.connect(mongoURL);
-      const db = client.db();
-  
-      console.log(new ObjectId(orderId));
-      const order = await db.collection('orders').findOne({ _id: new ObjectId(orderId), userId });
-      if (!order) {
-        return res.status(404).json({ message: 'Order not found' });
-      }
-  
-      const updatedFields = {};
-  
-      if (name !== undefined) {
-        updatedFields.name = name;
-      }
-  
-      if (food !== undefined) {
-        updatedFields.food = food;
-      }
-  
-      if (quantity !== undefined) {
-        updatedFields.quantity = quantity;
-      }
-  
-      if (price !== undefined) {
-        updatedFields.price = price;
-      }
-  
-      if (paymentStatus !== undefined) {
-        updatedFields.paymentStatus = paymentStatus;
-      }
-  
-      console.log(updatedFields);
-      await db.collection('orders').updateOne(
-        { _id: new ObjectId(orderId), userId },
-        { $set: updatedFields }
-      );
-  
-      client.close();
-  
-      res.json({ message: 'Order updated successfully' });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: 'Error updating order' });
-    }
-  });
-  
-  
-  
-  
 
-  // Update Approval Status
-  app.put('/orders/:orderId/approve', authenticateUser, async (req, res) => {
-    try {
-      const { orderId } = req.params;
-      const approved  = true
-      paymentStatus ='Paid'
-      const token = req.headers.authorization.split(' ')[1];
-      
-      const decodedToken = jwt.decode(token);
-      const userId = decodedToken.userId;
-      
-      const client = await mongodb.MongoClient.connect(mongoURL);
-      const db = client.db();
-  
-      const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-      
-      const userEmail = user.email;
-      console.log(userEmail);
-  
-      if (userEmail !== 'mhmd.shrydh1996@gmail.com') {
-        return res.status(403).json({ message: 'You are not authorized to update the approval status' });
-      }
-  
-      const order = await db.collection('orders').findOne({ _id: new ObjectId(orderId) });
-      if (!order) {
-        return res.status(404).json({ message: 'Order not found' });
-      }
-  
-      await db.collection('orders').updateOne(
-        { _id: new ObjectId(orderId) },
-        { $set: { approved ,paymentStatus } }
-      );
-  
-      client.close();
-      let msg= `السيد/ه المحترم/ه ${order.name}❤ :  تم دفع قيمة طلبك بنجاح`
-           clientz.messages
-      .create({
-         from: 'whatsapp:+14155238886',
-         body: JSON.stringify(msg),
-         to: 'whatsapp:+962795956190'
-       })
-      .then(message => console.log(message));
-      res.json({ message: 'Approval status updated successfully' });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: 'Error updating approval status' });
-    }
-  });
-  
-  app.delete('/orders/:orderId', authenticateUser, async (req, res) => {
-    try {
-      const { orderId } = req.params;
-  
-      const token = req.headers.authorization.split(' ')[1];
-      const decodedToken = jwt.decode(token);
-      const userId = decodedToken.userId;
-  
-      const client = await mongodb.MongoClient.connect(mongoURL);
-      const db = client.db();
-  
-      const order = await db.collection('orders').findOne({ _id: new ObjectId(orderId), userId });
-      if (!order) {
-        return res.status(404).json({ message: 'Order not found' });
-      }
-  
-      await db.collection('orders').deleteOne({ _id: new ObjectId(orderId), userId });
-  
-      client.close();
-  
-      res.json({ message: 'Order removed successfully' });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: 'Error removing order' });
-    }
-  });
-  
-  // Get Order by ID
-app.get('/orders/:orderId', authenticateUser, async (req, res) => {
-    try {
-      const { orderId } = req.params;
-  
-      const token = req.headers.authorization.split(' ')[1];
-      const decodedToken = jwt.decode(token);
-      const userId = decodedToken.userId;
-      const client = await mongodb.MongoClient.connect(mongoURL);
-      const db = client.db();
-      const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
-      console.log(user.phone);
-      const order = await db.collection('orders').findOne({ _id: new ObjectId(orderId) });
-      if (!order) {
-        return res.status(404).json({ message: 'Order not found' });
-      }
-  let msg= `السيد/ه المحترم/ه ${order.name}❤ : طلبك هو  :  ${order.food}  ----  عدد :  ${order.quantity} ----- بقيمة : ${order.price} دينار`
+// Update Order by ID
+app.put('/orders/:id', validateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, food, quantity, price , paymentStatus} = req.body;
+    const userId = req.userId;
 
-      client.close();
-      clientz.messages
-      .create({
-         from: 'whatsapp:+14155238886',
-         body: JSON.stringify(msg),
-         to: 'whatsapp:+962795956190'
-       })
-      .then(message => console.log(message));
-      res.json(order);
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: 'Error retrieving order' });
+    if (!name) {
+      return res.status(400).json({ errors: [{ type: 'field', msg: 'Name is required', path: 'name', location: 'body' }] });
     }
-  });
-  
+
+    if (!food) {
+      return res.status(400).json({ errors: [{ type: 'field', msg: 'Food is required', path: 'food', location: 'body' }] });
+    }
+
+    if (!quantity || !Number.isInteger(quantity) || quantity < 1) {
+      return res.status(400).json({ errors: [{ type: 'field', msg: 'Quantity must be a positive integer', path: 'quantity', location: 'body' }] });
+    }
+
+    if (!price || typeof price !== 'number' || price < 0) {
+      return res.status(400).json({ errors: [{ type: 'field', msg: 'Price must be a non-negative number', path: 'price', location: 'body' }] });
+    }
+
+    const order = await Order.findOneAndUpdate({ _id: id, userId }, { name, food, quantity, price,paymentStatus }, { new: true });
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    res.json(order);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error updating order' });
+  }
+});
+
+// Delete Order by ID
+app.delete('/orders/:id', validateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    const order = await Order.findOneAndDelete({ _id: id, userId });
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    res.json({ message: 'Order deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error deleting order' });
+  }
+});
+app.get('/orders/:orderId', validateToken, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const userId = req.userId;
+
+    const user = await User.findOne({ _id: userId });
+    
+
+    const order = await Order.findOne({ _id: orderId });
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    let msg = `السيد/ة المحترم/ة ${order.name} ❤️ : طلبك هو: ${order.food}  ----  عدد: ${order.quantity} ----- بقيمة: ${order.price} دينار`;
+
+    clientz.messages
+      .create({
+        from: 'whatsapp:+14155238886',
+        body: JSON.stringify(msg),
+        to: 'whatsapp:+962795956190'
+      })
+      .then(message => console.log(message));
+
+    res.json(order);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error retrieving order' });
+  }
+});
+
+// Update Approval Status
+app.put('/orders/:orderId/approve', validateToken, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const approved  = true
+    paymentStatus ='Paid'
+    const userId = req.userId;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(400).json({ message: 'User not found' });
+    }
+
+    const userEmail = user.email;
+    console.log(userEmail);
+
+    if (userEmail !== 'mhmd.shrydh1996@gmail.com') {
+      return res.status(403).json({ message: 'You are not authorized to update the approval status' });
+    }
+
+    const order = await Order.findOne({ _id: orderId });
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    order.approved = approved;
+    order.paymentStatus = paymentStatus || order.paymentStatus;
+    await order.save();
+
+    let msg = `السيد/ه المحترم/ه ${order.name}❤ :  تم دفع قيمة طلبك بنجاح`;
+    clientz.messages
+      .create({
+        from: 'whatsapp:+14155238886',
+        body: JSON.stringify(msg),
+        to: 'whatsapp:+962795956190'
+      })
+      .then(message => console.log(message));
+
+    res.json({ message: 'Approval status updated successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error updating approval status' });
+  }
+});
 // Clear All Orders (Accessible only to the email in decodedToken)
-app.delete('/orders/clear/all', authenticateUser, async (req, res) => {
-    try {
-      const token = req.headers.authorization.split(' ')[1];
-      const decodedToken = jwt.decode(token);
-      const userId = decodedToken.userId;
-  console.log(userId);
-      const client = await mongodb.MongoClient.connect(mongoURL);
-      const db = client.db();
-  
-      const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
-  console.log(user);
-      if (!user || user.email !== 'mhmd.shrydh1996@gmail.com') {
-        return res.status(403).json({ message: 'Access denied' });
-      }
-  
-      await db.collection('orders').deleteMany({});
-  
-      client.close();
-  
-      res.json({ message: 'All orders cleared successfully' });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: 'Error clearing orders' });
+app.delete('/orders/clear/all', validateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const user = await User.findOne({ _id: userId });
+    if (!user || user.email !== 'mhmd.shrydh1996@gmail.com') {
+      return res.status(403).json({ message: 'Access denied' });
     }
-  });
-  
 
+    await Order.deleteMany({});
 
-
+    res.json({ message: 'All orders cleared successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error clearing orders' });
+  }
+});
 
 // Start the server
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+app.listen(3000, () => {
+  console.log('Server is running on http://localhost:3000');
 });
