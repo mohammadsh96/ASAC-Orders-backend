@@ -4,9 +4,10 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 require('dotenv').config()
 const cors = require('cors');
+const twilio = require('twilio');
 const accountSid = process.env.TWILIO_ACCOUNT_SID ;
 const authToken = process.env.TWILIO_AUTH_TOKEN ;
-const clientz = require('twilio')(accountSid, authToken);
+const clientz = twilio(accountSid, authToken);
 console.log(accountSid ,authToken);
 // const { body, validationResult } = require('express-validator');
 const app = express();
@@ -164,16 +165,24 @@ app.post('/orders', validateToken, async (req, res) => {
       approved: false,
       userId,
     };
+    await Order.create(order);
+    let msg= `السيد/ه المحترم/ه ${order.name}❤ : طلبك هو  :  ${order.food}  ----  عدد :  ${order.quantity} ----- بقيمة : ${order.price} دينار`
+   
+try {
+  clientz.messages
+  .create({
+     from: 'whatsapp:+14155238886',
+     body: JSON.stringify(msg),
+     to: 'whatsapp:+962795956190',
+     username: 'mhmd.shrydh1996@gmail.com'
 
-    const newOrder = await Order.create(order);
-    // let msg= `السيد/ه المحترم/ه ${newOrder.name}❤ : طلبك هو  :  ${newOrder.food}  ----  عدد :  ${newOrder.quantity} ----- بقيمة : ${newOrder.price} دينار`
-    // clientz.messages
-    //     .create({
-    //        from: 'whatsapp:+14155238886',
-    //        body: JSON.stringify(msg),
-    //        to: 'whatsapp:+962795956190'
-    //      })
-    //     .then(message => console.log(message));
+   })
+  .then(message => console.log(message));
+} catch (error) {
+  console.log(error);
+}
+     
+    
   
     res.status(201).json({ message: 'Order created successfully' });
   } catch (err) {
@@ -262,14 +271,23 @@ app.get('/orders/:orderId', validateToken, async (req, res) => {
     }
 
     let msg = `السيد/ة المحترم/ة ${order.name} ❤️ : طلبك هو: ${order.food}  ----  عدد: ${order.quantity} ----- بقيمة: ${order.price} دينار`;
+if(order){
 
+
+  try {
     clientz.messages
-      .create({
-        from: 'whatsapp:+14155238886',
-        body: JSON.stringify(msg),
-        to: 'whatsapp:+962795956190'
-      })
-      .then(message => console.log(message));
+    .create({
+       from: 'whatsapp:+14155238886',
+       body: JSON.stringify(msg),
+       to: 'whatsapp:+962795956190',
+       username: 'mhmd.shrydh1996@gmail.com'
+  
+     })
+    .then(message => console.log(message));
+  } catch (error) {
+    console.log(error);
+  }
+}
 
     res.json(order);
   } catch (err) {
@@ -306,15 +324,23 @@ app.put('/orders/:orderId/approve', validateToken, async (req, res) => {
     order.approved = approved;
     order.paymentStatus = paymentStatus || order.paymentStatus;
     await order.save();
-
     let msg = `السيد/ه المحترم/ه ${order.name}❤ :  تم دفع قيمة طلبك بنجاح`;
+if(order){
+
+  try {
     clientz.messages
-      .create({
-        from: 'whatsapp:+14155238886',
-        body: JSON.stringify(msg),
-        to: 'whatsapp:+962795956190'
-      })
-      .then(message => console.log(message));
+    .create({
+       from: 'whatsapp:+14155238886',
+       body: JSON.stringify(msg),
+       to: 'whatsapp:+962795956190',
+       username: 'mhmd.shrydh1996@gmail.com'
+  
+     })
+    .then(message => console.log(message));
+  } catch (error) {
+    console.log(error);
+  }
+}
 
     res.json({ message: 'Approval status updated successfully' });
   } catch (err) {
