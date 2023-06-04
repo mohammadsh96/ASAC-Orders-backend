@@ -85,7 +85,20 @@ app.put('/external-orders', async (req, res) => {
     res.status(500).json({ message: 'Error updating number of external orders' });
   }
 });
+app.get('/external-orders', async (req, res) => {
+  
+  try {
+    const externalOrder = await ExternalOrder.findOne({ email: 'mhmd.shrydh1996@gmail.com' });
 
+    if (!externalOrder) {
+      return res.status(404).json({ message: 'External order not found' });
+    }
+       res.json(externalOrder);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error updating number of external orders' });
+  }
+});
 // Helper function to validate email format
 function isValidEmail(email) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
