@@ -218,24 +218,7 @@ app.post('/orders', validateToken, async (req, res) => {
       userId,
     };
     await Order.create(order);
-    let msg= `السيد/ه المحترم/ه ${order.name}❤ : طلبك هو  :  ${order.food}  ----  عدد :  ${order.quantity} ----- بقيمة : ${order.price} دينار`
-   
-// try {
-//   clientz.messages
-//   .create({
-//      from: 'whatsapp:+14155238886',
-//      body: JSON.stringify(msg),
-//      to: 'whatsapp:+962795956190',
-//      username: 'mhmd.shrydh1996@gmail.com'
-
-//    })
-//   .then(message => console.log(message));
-// } catch (error) {
-//   console.log(error);
-// }
-     
     
-  
     res.status(201).json({ message: 'Order created successfully' });
   } catch (err) {
     console.error(err);
@@ -263,10 +246,19 @@ app.get('/send-calculations', async (req, res) => {
     // const userId = req.userId;
     let arr ='' 
     const orders = await Order.find();
+    const Eorders = await ExternalOrder.find();
+    let total=parseInt(Eorders[0].numberOfExternalOrders) + parseInt(orders.length)
+
+    let del=2/parseInt(total)
+    console.log(total);
+
+    console.log(orders.length);
+    console.log(Eorders[0].numberOfExternalOrders);
+    console.log(del);
     for (let i = 0; i < orders.length; i++) {
       let order =orders[i]
       
-      let msg = `💲${order.name}:${order.price} \n`; 
+      let msg = `💲${order.name}:${(order.price+del).toFixed(1)} \n`; 
      
       arr+=msg
     }
