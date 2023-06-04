@@ -64,10 +64,10 @@ const externalOrderSchema = new mongoose.Schema({
 });
 const ExternalOrder = mongoose.model('ExternalOrder', externalOrderSchema);
 app.put('/external-orders', async (req, res) => {
-  const { increment } = req.body;
-  console.log(increment && typeof increment);
   try {
-    const externalOrder = await ExternalOrder.findOne({ email: 'mhmd.shrydh1996@gmail.com' });
+    let { increment } = req.body;
+    increment=parseInt(increment)
+    const externalOrder = await ExternalOrder.findOne();
 
     if (!externalOrder) {
       return res.status(404).json({ message: 'External order not found' });
@@ -75,8 +75,8 @@ app.put('/external-orders', async (req, res) => {
 
     if (increment && typeof increment === 'number' && increment > 0) {
       externalOrder.numberOfExternalOrders = increment;
-    let x=  await externalOrder.save();
-    console.log(x);
+     await externalOrder.save();
+   
     }
 
     res.json(externalOrder);
@@ -93,6 +93,7 @@ app.get('/external-orders', async (req, res) => {
     if (!externalOrder) {
       return res.status(404).json({ message: 'External order not found' });
     }
+    console.log(externalOrder);
        res.json(externalOrder);
   } catch (err) {
     console.error(err);
@@ -441,6 +442,6 @@ console.log(userId);
   }
 });
 // Start the server
-app.listen(3000, () => {
+app.listen(3001, () => {
   console.log('Server is running on http://localhost:3000');
 });
