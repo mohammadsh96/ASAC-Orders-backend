@@ -67,6 +67,7 @@ app.put('/external-orders', async (req, res) => {
   try {
     let { increment } = req.body;
     increment=parseInt(increment)
+    console.log(increment);
     const externalOrder = await ExternalOrder.findOne();
 
     if (!externalOrder) {
@@ -77,6 +78,10 @@ app.put('/external-orders', async (req, res) => {
       externalOrder.numberOfExternalOrders = increment;
      await externalOrder.save();
    
+    }else if(increment == 0){
+      console.log('hello 00');
+      externalOrder.numberOfExternalOrders = increment;
+     await externalOrder.save();
     }
 
     res.json(externalOrder);
