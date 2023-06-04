@@ -4,10 +4,10 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 require('dotenv').config()
 const cors = require('cors');
-// const twilio = require('twilio');
-// const accountSid = process.env.TWILIO_ACCOUNT_SID ;
-// const authToken = process.env.TWILIO_AUTH_TOKEN ;
-// const clientz = twilio(accountSid, authToken);
+const twilio = require('twilio');
+const accountSid = process.env.TWILIO_ACCOUNT_SID ;
+const authToken = process.env.TWILIO_AUTH_TOKEN ;
+const clientz = twilio(accountSid, authToken);
 // console.log(accountSid ,authToken);
 // const { body, validationResult } = require('express-validator');
 const app = express();
@@ -248,15 +248,53 @@ app.post('/orders', validateToken, async (req, res) => {
 app.get('/orders', async (req, res) => {
   try {
     // const userId = req.userId;
-
+    let arr ='' 
     const orders = await Order.find();
+  
     res.json(orders);
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error retrieving orders' });
   }
 });
+app.get('/send-calculations', async (req, res) => {
+  try {
+    // const userId = req.userId;
+    let arr ='' 
+    const orders = await Order.find();
+    for (let i = 0; i < orders.length; i++) {
+      let order =orders[i]
+      
+      let msg = `💲${order.name}:${order.price} \n`; 
+     
+      arr+=msg
+    }
+    res.json(orders);
 
+if(orders){
+  try {
+    clientz.messages
+    .create({
+       from: 'whatsapp:+14155238886',
+       body: arr,
+       to: 'whatsapp:+962795956190',
+       username: 'mhmd.shrydh1996@gmail.com'
+  
+     })
+    .then(message => console.log(message));
+  } catch (error) {
+    console.log(error);
+  }
+
+}
+
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error retrieving orders' });
+  }
+});
 // Update Order by ID
 app.put('/orders/:id', validateToken, async (req, res) => {
   try {
@@ -376,23 +414,8 @@ app.put('/orders/:orderId/approve', validateToken, async (req, res) => {
     order.approved = approved;
     order.paymentStatus = paymentStatus || order.paymentStatus;
     await order.save();
-    let msg = `السيد/ه المحترم/ه ${order.name}❤ :  تم دفع قيمة طلبك بنجاح`;
-// if(order){
+    // let msg = `السيد/ه المحترم/ه ${order.name}❤ :  تم دفع قيمة طلبك بنجاح`;
 
-//   try {
-//     clientz.messages
-//     .create({
-//        from: 'whatsapp:+14155238886',
-//        body: JSON.stringify(msg),
-//        to: 'whatsapp:+962795956190',
-//        username: 'mhmd.shrydh1996@gmail.com'
-  
-//      })
-//     .then(message => console.log(message));
-//   } catch (error) {
-//     console.log(error);
-//   }
-// }
 
     res.json({ message: 'Approval status updated successfully' });
   } catch (err) {
