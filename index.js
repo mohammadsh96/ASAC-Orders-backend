@@ -52,6 +52,39 @@ const orderSchema = new mongoose.Schema({
 });
 
 const Order = mongoose.model('Order', orderSchema);
+const externalOrderSchema = new mongoose.Schema({
+  email: {
+    type: String,
+    default: 'mhmd.shrydh1996@gmail.com',
+  },
+  numberOfExternalOrders: {
+    type: Number,
+    default: 0,
+  },
+});
+const ExternalOrder = mongoose.model('ExternalOrder', externalOrderSchema);
+app.put('/external-orders', async (req, res) => {
+  const { increment } = req.body;
+  console.log(increment && typeof increment);
+  try {
+    const externalOrder = await ExternalOrder.findOne({ email: 'mhmd.shrydh1996@gmail.com' });
+
+    if (!externalOrder) {
+      return res.status(404).json({ message: 'External order not found' });
+    }
+
+    if (increment && typeof increment === 'number' && increment > 0) {
+      externalOrder.numberOfExternalOrders = increment;
+    let x=  await externalOrder.save();
+    console.log(x);
+    }
+
+    res.json(externalOrder);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error updating number of external orders' });
+  }
+});
 
 // Helper function to validate email format
 function isValidEmail(email) {
@@ -366,7 +399,34 @@ app.delete('/orders/clear/all', validateToken, async (req, res) => {
     res.status(500).json({ message: 'Error clearing orders' });
   }
 });
+app.get('/each/order', validateToken, async (req, res) => {
+  console.log(req.body.name);
+  try {
+    const { name } = req.body;
+    const userId = req.userId;
+console.log(name);
+console.log(userId);
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(400).json({ message: 'User not found' });
+    }
 
+    const orders = await Order.find({ name });
+    if (!orders || orders.length === 0) {
+      return res.status(404).json({ message: 'No orders found for the user' });
+    }
+
+    let totalPrice = 0;
+    for (const order of orders) {
+      totalPrice += order.price;
+    }
+
+    res.json({ name, totalPrice });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error retrieving total price' });
+  }
+});
 // Start the server
 app.listen(3000, () => {
   console.log('Server is running on http://localhost:3000');
