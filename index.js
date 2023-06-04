@@ -73,7 +73,7 @@ app.put('/external-orders', async (req, res) => {
       return res.status(404).json({ message: 'External order not found' });
     }
 
-    if (increment && typeof increment === 'number' && increment > 0) {
+    if (increment && typeof increment === 'number' && increment >= 0) {
       externalOrder.numberOfExternalOrders = increment;
      await externalOrder.save();
    
@@ -93,7 +93,7 @@ app.get('/external-orders', async (req, res) => {
     if (!externalOrder) {
       return res.status(404).json({ message: 'External order not found' });
     }
-    console.log(externalOrder);
+    
        res.json(externalOrder);
   } catch (err) {
     console.error(err);
