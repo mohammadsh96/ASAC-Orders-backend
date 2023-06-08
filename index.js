@@ -258,7 +258,7 @@ app.get('/send-calculations', async (req, res) => {
     for (let i = 0; i < orders.length; i++) {
       let order =orders[i]
       
-      let msg = `💲${order.name}:${(order.price+del).toFixed(1)} \n`; 
+      let msg = `💲${order.name}:${(order.price+del).toFixed(2)} \n`; 
      
       arr+=msg
     }
