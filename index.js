@@ -247,7 +247,14 @@ app.get('/send-calculations', async (req, res) => {
     let arr ='' 
     const orders = await Order.find();
     const Eorders = await ExternalOrder.find();
-    let total=parseInt(Eorders[0].numberOfExternalOrders) + parseInt(orders.length)
+    let count=0
+    for (let i = 0; i < orders.length; i++) {
+       if(orders[i].food=='I am Good'){
+        count++
+       }
+      
+    }
+    let total=parseInt(Eorders[0].numberOfExternalOrders) + parseInt(orders.length-count)
 
     let del=2/parseInt(total)
     console.log(total);
@@ -463,5 +470,5 @@ console.log(userId);
 });
 // Start the server
 app.listen(3001, () => {
-  console.log('Server is running on http://localhost:3000');
+  console.log(`Server is running on http://localhost:3001`);
 });
