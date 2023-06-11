@@ -281,12 +281,13 @@ app.get('/send-calculations', async (req, res) => {
     // console.log(orders.length);
     // console.log(Eorders[0].numberOfExternalOrders);
     console.log(incrementIndex);
+    let arrFoods =''
     for (let i = 0; i < orders.length; i++) {
       let order =orders[i]
       if(order.food !=='I am Good'){
 
-        let msg = `💲${order.name}:${(order.price+incrementIndex).toFixed(2)} \n`; 
-       
+        let msg = `💲${order.name}:${(order.price+incrementIndex).toFixed(2)} \n `; 
+       arrFoods+=`${order.name}:${order.food}\n`
         arr+=msg
       }
     }
@@ -297,7 +298,7 @@ if(orders){
     clientz.messages
     .create({
        from: 'whatsapp:+14155238886',
-       body: arr,
+       body: arr +arrFoods,
        to: 'whatsapp:+962795956190',
        username: 'mhmd.shrydh1996@gmail.com'
   
