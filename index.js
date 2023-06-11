@@ -254,20 +254,41 @@ app.get('/send-calculations', async (req, res) => {
        }
       
     }
-    let total=parseInt(Eorders[0].numberOfExternalOrders) + parseInt(orders.length-count)
+    let totalNumOrders=parseInt(Eorders[0].numberOfExternalOrders) + parseInt(orders.length-count)
+    const incrementValues = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95, 1.00, 2.00, 2.00, 2.00];
 
-    let del=2/parseInt(total)
-    console.log(total);
+    let incrementIndex = (2 / totalNumOrders)
 
-    console.log(orders.length);
-    console.log(Eorders[0].numberOfExternalOrders);
-    console.log(del);
+    for (let i = 0; i < incrementValues.length; i++) {
+
+      if (incrementIndex >= incrementValues[i] && incrementIndex < incrementValues[i + 1]) {
+        if (incrementIndex === incrementValues[i]) {
+
+          incrementIndex = incrementValues[i]
+        } else {
+          incrementIndex = incrementValues[i + 1]
+
+        }
+        break;
+      }
+
+
+    }
+
+    // let del=2/parseInt(total)
+    console.log(totalNumOrders);
+
+    // console.log(orders.length);
+    // console.log(Eorders[0].numberOfExternalOrders);
+    console.log(incrementIndex);
     for (let i = 0; i < orders.length; i++) {
       let order =orders[i]
-      
-      let msg = `💲${order.name}:${(order.price+del).toFixed(2)} \n`; 
-     
-      arr+=msg
+      if(order.food !=='I am Good'){
+
+        let msg = `💲${order.name}:${(order.price+incrementIndex).toFixed(2)} \n`; 
+       
+        arr+=msg
+      }
     }
     res.json(orders);
 
