@@ -2,17 +2,31 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
-require('dotenv').config()
+require('dotenv').config();
 const cors = require('cors');
 const twilio = require('twilio');
-const accountSid = process.env.TWILIO_ACCOUNT_SID ;
-const authToken = process.env.TWILIO_AUTH_TOKEN ;
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
 const clientz = twilio(accountSid, authToken);
-// console.log(accountSid ,authToken);
-// const { body, validationResult } = require('express-validator');
 const app = express();
+const http = require('http');
+const {Server} = require('socket.io');
+const { Socket } = require('dgram');
+
+
 app.use(express.json());
 app.use(cors());
+const server = http.createServer(app);
+// const notificationQueue = [];
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST", "PUT"],
+  },
+});
+const messageQueue = [];
+// Keep track of connected sockets
+const connectedSockets = [];
 
 // Connect to MongoDB
 mongoose.connect('mongodb+srv://mohammadsh:PZqQNe0yM9qtXAWx@mohammadshcluster.bjrwqjp.mongodb.net/?retryWrites=true&w=majority', {
@@ -23,6 +37,72 @@ mongoose.connect('mongodb+srv://mohammadsh:PZqQNe0yM9qtXAWx@mohammadshcluster.bj
 const db = mongoose.connection;
 db.on('error', console.error.bind(console, 'MongoDB connection error:'));
 
+// io.on('connection', (socket) => {
+//   connectedSockets.push(socket);
+//   console.log('A user connected with ID:', socket.id);
+//   console.log('Total users connected:', connectedSockets.length);
+
+//   // Send queued messages to the connected user
+//   socket.emit('queuedNotifications', messageQueue);
+
+//   socket.on('disconnect', () => {
+//     const index = connectedSockets.indexOf(socket);
+//     if (index !== -1) {
+//       connectedSockets.splice(index, 1);
+//     }
+//     console.log('A user disconnected');
+//     console.log('Total users connected:', connectedSockets.length);
+//   });
+// });
+
+
+
+// Function to disconnect all connected clients
+// function disconnectAllClients() {
+//   connectedSockets.forEach((socket) => {
+//     socket.disconnect(true); // Disconnect each connected socket
+//   });
+//   connectedSockets.length = 0; // Clear the connected sockets array
+// }
+
+// // Example usage:
+// disconnectAllClients();
+
+
+// Example usage:
+// app.post('/send-order', async (req, res) => {
+//   let msg = req.body.msg;
+//   messageQueue.push(msg);
+
+//   try {
+//     io.emit('notification', { msg }); 
+//   } catch (error) {
+//     console.log(error);
+//   }
+
+//   res.send({ msg: "msg" });
+// });
+
+// io.on("getAll", () => {
+//   //this should return all the messages with specific IDs
+//   Object.keys(queue.messages).forEach((message) => {
+//     // redirect to printAllmessages to trigger the delivered event n times
+//     capsNamespace.emit("printAllmessages", {
+//       orderId: queue.messages[message].orderId,
+//       messageId: message,
+//     });
+//   });
+// });
+// io.on("received", (payload) => {
+//   //this will delete the message from the queue
+//   console.log(`deleting ${payload.messageId} from Queue . . .`);
+//   delete queue.messages[payload.messageId];
+// });
+// io.on("addToQueue", (payload) => {
+//   //this will add each new order to the queue
+//   queue.messages[payload.messageId] = payload;
+//   console.log(`add to queue 😲 ${payload.messageId}, order ID: ${payload.orderId}`);
+// });
 // User Schema
 const userSchema = new mongoose.Schema({
   name: String,
@@ -63,6 +143,52 @@ const externalOrderSchema = new mongoose.Schema({
   },
 });
 const ExternalOrder = mongoose.model('ExternalOrder', externalOrderSchema);
+const menuSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    default: 'arabShawerma',
+  }
+});
+const menuModel = mongoose.model('menu', menuSchema);
+
+
+
+app.get('/' , async(req,res)=>{
+  res.status(200).send({msg:'welcome to Home page'})
+})
+app.post('/menu' , async(req,res)=>{
+  let name =req.body.name 
+  try {
+    const Menu = await menuModel.create({name})
+  res.status(201).json(Menu)
+} catch (error) {
+  console.log(error);
+}
+
+})
+app.get('/menu' , async(req,res)=>{
+  
+  try {
+    const Menu = await menuModel.find()
+  res.status(200).json(Menu)
+} catch (error) {
+  console.log(error);
+}
+
+})
+app.put('/menu' , async(req,res)=>{
+  let name =req.body.name 
+  try {
+    const Menu = await menuModel.findOne()
+  const newMenu = await Menu.update({name})
+  res.status(201).json(newMenu)
+} catch (error) {
+  console.log(error);
+}
+
+})
+
+
 app.put('/external-orders', async (req, res) => {
   try {
     let { increment } = req.body;
@@ -491,6 +617,6 @@ console.log(userId);
   }
 });
 // Start the server
-app.listen(3001, () => {
+server.listen(3001, () => {
   console.log(`Server is running on http://localhost:3001`);
 });
