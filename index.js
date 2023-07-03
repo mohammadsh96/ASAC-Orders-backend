@@ -435,7 +435,39 @@ app.get('/send-calculations', async (req, res) => {
 
 
     }
+    let foodCounts = {};
+  
+    for (let i = 0; i < orders.length; i++) {
+      let food = orders[i].food;
+  
+      // Check if the food item contains '+'
+      if (food.includes('+')) {
+        // Split the food item into multiple items
+        let splitItems = food.split('+');
+  
+        // Count the split items
+        splitItems.forEach(item => {
+          let trimmedItem = item.trim(); // Trim to remove any leading/trailing spaces
+  
+          if (foodCounts[trimmedItem]) {
+            foodCounts[trimmedItem] += 1;
+          } else {
+            foodCounts[trimmedItem] = 1;
+          }
+        });
+      } else {
+        if (foodCounts[food]) {
+          foodCounts[food] += 1;
+        } else {
+          foodCounts[food] = 1;
+        }
+      }
+    }
+    let countOrders= ''
+    for (let key in foodCounts) {
+      countOrders+=`${key}:${foodCounts[key]}\n`
 
+    }
     // let del=2/parseInt(total)
     console.log(totalNumOrders);
 
@@ -443,15 +475,21 @@ app.get('/send-calculations', async (req, res) => {
     // console.log(Eorders[0].numberOfExternalOrders);
     console.log(incrementIndex);
     let arrFoods =''
+    let total =0
     for (let i = 0; i < orders.length; i++) {
       let order =orders[i]
       if(order.food !=='I am Good'){
 
-        let msg = `💲${order.name}:${(order.price+incrementIndex).toFixed(2)} \n `; 
+        let msg = `@${order.name}:${(order.price+incrementIndex).toFixed(2)} \n `; 
        arrFoods+=`${order.name}:${order.food}\n`
         arr+=msg
       }
+      total=total+parseFloat((order.price+incrementIndex).toFixed(2));
+    
+
     }
+    console.log(total);
+    // console.log((2-(orders.length * incrementValues)).toFixed(2));
     res.json(orders);
 
 if(orders){
@@ -459,7 +497,7 @@ if(orders){
     clientz.messages
     .create({
        from: 'whatsapp:+14155238886',
-       body: arr +arrFoods,
+       body: arr+ '\n----------------\n' +"total : " +total + '\n----------------\n' +arrFoods + '\n----------------\n' + countOrders,
        to: 'whatsapp:+962795956190',
        username: 'mhmd.shrydh1996@gmail.com'
   
