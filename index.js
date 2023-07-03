@@ -11,8 +11,6 @@ const clientz = twilio(accountSid, authToken);
 const app = express();
 const http = require('http');
 const {Server} = require('socket.io');
-const { Socket } = require('dgram');
-const { log } = require('console');
 
 
 app.use(express.json());
@@ -112,6 +110,11 @@ const userSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', userSchema);
 
+const appSchema = new mongoose.Schema({
+  close: Boolean,
+  
+});
+const appStatus = mongoose.model('appStatus', appSchema);
 // Order Schema
 const orderSchema = new mongoose.Schema({
   name: String,
@@ -157,6 +160,22 @@ const menuModel = mongoose.model('menu', menuSchema);
 app.get('/' , async(req,res)=>{
   res.status(200).send({msg:'welcome to Home page'})
 })
+
+app.post('/close',async(req,res)=>{
+   await appStatus.create({close:true})
+  res.status(201).send({msg:'app colsed'})
+})
+app.put('/close',async(req,res)=>{
+ let record=  await appStatus.findOne()
+ let status= record.close
+ await appStatus.findOneAndUpdate({close :!status})
+ res.status(201).send({msg:!status})
+})
+app.get('/close',async(req,res)=>{
+  let record=  await appStatus.findOne()
+ res.status(201).send(record)
+})
+
 app.post('/menu' , async(req,res)=>{
   let name =req.body.name 
   try {
