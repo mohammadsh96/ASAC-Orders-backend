@@ -12,6 +12,7 @@ const app = express();
 const http = require('http');
 const {Server} = require('socket.io');
 const { Socket } = require('dgram');
+const { log } = require('console');
 
 
 app.use(express.json());
@@ -187,6 +188,40 @@ app.put('/menu' , async(req,res)=>{
 }
 
 })
+
+app.get('/orders-count', async (req, res) => {
+  let records = await Order.find();
+  let foodCounts = {};
+
+  for (let i = 0; i < records.length; i++) {
+    let food = records[i].food;
+
+    // Check if the food item contains '+'
+    if (food.includes('+')) {
+      // Split the food item into multiple items
+      let splitItems = food.split('+');
+
+      // Count the split items
+      splitItems.forEach(item => {
+        let trimmedItem = item.trim(); // Trim to remove any leading/trailing spaces
+
+        if (foodCounts[trimmedItem]) {
+          foodCounts[trimmedItem] += 1;
+        } else {
+          foodCounts[trimmedItem] = 1;
+        }
+      });
+    } else {
+      if (foodCounts[food]) {
+        foodCounts[food] += 1;
+      } else {
+        foodCounts[food] = 1;
+      }
+    }
+  }
+
+  res.json(foodCounts);
+});
 
 
 app.put('/external-orders', async (req, res) => {
