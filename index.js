@@ -421,6 +421,29 @@ app.get('/orders', async (req, res) => {
     res.status(500).json({ message: 'Error retrieving orders' });
   }
 });
+app.get('/orders-last-24-hours', async (req, res) => {
+  try {
+    // Get current time
+    const currentTime = new Date();
+
+    // Get time 24 hours ago
+    const twentyFourHoursAgo = new Date(currentTime.getTime() - (24 * 60 * 60 * 1000));
+
+    // Query to find orders within the last 24 hours
+    const query = {
+        createdAt: { $gte: twentyFourHoursAgo }
+    };
+
+    const orders = await Order.find(query);
+
+    res.json(orders);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error retrieving orders from the last 24 hours' });
+  }
+});
+
 app.get('/send-calculations', async (req, res) => {
   try {
     // const userId = req.userId;
@@ -566,6 +589,54 @@ app.put('/orders/:id', validateToken, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error updating order' });
+  }
+});
+
+app.get('/todays-orders-count', async (req, res) => {
+
+  // Get start of the current day in local timezone
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  // Query for orders created on or after the start of the day
+  const query = {
+      createdAt: { $gte: startOfDay }
+  };
+
+  try {
+      let records = await Order.find(query);
+      let foodCounts = {};
+
+      for (let i = 0; i < records.length; i++) {
+          let food = records[i].food;
+
+          // Check if the food item contains '+'
+          if (food.includes('+')) {
+              // Split the food item into multiple items
+              let splitItems = food.split('+');
+
+              // Count the split items
+              splitItems.forEach(item => {
+                  let trimmedItem = item.trim(); // Trim to remove any leading/trailing spaces
+
+                  if (foodCounts[trimmedItem]) {
+                      foodCounts[trimmedItem] += 1;
+                  } else {
+                      foodCounts[trimmedItem] = 1;
+                  }
+              });
+          } else {
+              if (foodCounts[food]) {
+                  foodCounts[food] += 1;
+              } else {
+                  foodCounts[food] = 1;
+              }
+          }
+      }
+
+      res.json(foodCounts);
+  } catch (error) {
+      res.status(500).json({ message: 'Error retrieving today\'s orders' });
   }
 });
 
