@@ -36,72 +36,73 @@ mongoose.connect('mongodb+srv://mohammadsh:PZqQNe0yM9qtXAWx@mohammadshcluster.bj
 const db = mongoose.connection;
 db.on('error', console.error.bind(console, 'MongoDB connection error:'));
 
-// io.on('connection', (socket) => {
-//   connectedSockets.push(socket);
-//   console.log('A user connected with ID:', socket.id);
-//   console.log('Total users connected:', connectedSockets.length);
+io.on('connection', (socket) => {
+  connectedSockets.push(socket);
+  console.log('A user connected with ID:', socket.id);
+  console.log('Total users connected:', connectedSockets.length);
 
-//   // Send queued messages to the connected user
-//   socket.emit('queuedNotifications', messageQueue);
+  // Send queued messages to the connected user
+  socket.emit('queuedNotifications', messageQueue.filter(notification => notification !== null));
 
-//   socket.on('disconnect', () => {
-//     const index = connectedSockets.indexOf(socket);
-//     if (index !== -1) {
-//       connectedSockets.splice(index, 1);
-//     }
-//     console.log('A user disconnected');
-//     console.log('Total users connected:', connectedSockets.length);
-//   });
-// });
+  socket.on('disconnect', () => {
+    const index = connectedSockets.indexOf(socket);
+    if (index !== -1) {
+      connectedSockets.splice(index, 1);
+    }
+    console.log('A user disconnected');
+    console.log('Total users connected:', connectedSockets.length);
+  });
+});
 
 
 
 // Function to disconnect all connected clients
-// function disconnectAllClients() {
-//   connectedSockets.forEach((socket) => {
-//     socket.disconnect(true); // Disconnect each connected socket
-//   });
-//   connectedSockets.length = 0; // Clear the connected sockets array
-// }
+function disconnectAllClients() {
+  connectedSockets.forEach((socket) => {
+    socket.disconnect(true); // Disconnect each connected socket
+  });
+  connectedSockets.length = 0; // Clear the connected sockets array
+}
 
-// // Example usage:
-// disconnectAllClients();
+// Example usage:
+disconnectAllClients();
 
 
 // Example usage:
-// app.post('/send-order', async (req, res) => {
-//   let msg = req.body.msg;
-//   messageQueue.push(msg);
+app.post('/send-order', async (req, res) => {
+  let msg = req.body.msg;
+  console.log(msg);
+  messageQueue.push(msg);
 
-//   try {
-//     io.emit('notification', { msg }); 
-//   } catch (error) {
-//     console.log(error);
-//   }
+  try {
+    io.emit('notification', { msg }); 
+  } catch (error) {
+    console.log(error);
+  }
 
-//   res.send({ msg: "msg" });
-// });
+  res.send({ msg: "msg" });
+});
 
-// io.on("getAll", () => {
-//   //this should return all the messages with specific IDs
-//   Object.keys(queue.messages).forEach((message) => {
-//     // redirect to printAllmessages to trigger the delivered event n times
-//     capsNamespace.emit("printAllmessages", {
-//       orderId: queue.messages[message].orderId,
-//       messageId: message,
-//     });
-//   });
-// });
-// io.on("received", (payload) => {
-//   //this will delete the message from the queue
-//   console.log(`deleting ${payload.messageId} from Queue . . .`);
-//   delete queue.messages[payload.messageId];
-// });
-// io.on("addToQueue", (payload) => {
-//   //this will add each new order to the queue
-//   queue.messages[payload.messageId] = payload;
-//   console.log(`add to queue 😲 ${payload.messageId}, order ID: ${payload.orderId}`);
-// });
+io.on("getAll", () => {
+  //this should return all the messages with specific IDs
+  Object.keys(queue.messages).forEach((message) => {
+    // redirect to printAllmessages to trigger the delivered event n times
+    capsNamespace.emit("printAllmessages", {
+      orderId: queue.messages[message].orderId,
+      messageId: message,
+    });
+  });
+});
+io.on("received", (payload) => {
+  //this will delete the message from the queue
+  console.log(`deleting ${payload.messageId} from Queue . . .`);
+  delete queue.messages[payload.messageId];
+});
+io.on("addToQueue", (payload) => {
+  //this will add each new order to the queue
+  queue.messages[payload.messageId] = payload;
+  console.log(`add to queue 😲 ${payload.messageId}, order ID: ${payload.orderId}`);
+});
 // User Schema
 const userSchema = new mongoose.Schema({
   name: String,
