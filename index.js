@@ -162,8 +162,13 @@ app.get('/' , async(req,res)=>{
 })
 
 app.post('/close',async(req,res)=>{
-   await appStatus.create({close:true})
-  res.status(201).send({msg:'app colsed'})
+  try{
+    await appStatus.create({close:true})
+    res.status(201).send({msg:'app closed'})
+  }catch(err){
+console.log(err);
+  }
+  
 })
 app.put('/close',async(req,res)=>{
  let record=  await appStatus.findOne()
@@ -175,38 +180,59 @@ app.get('/close',async(req,res)=>{
   let record=  await appStatus.findOne()
  res.status(201).send(record)
 })
-
-app.post('/menu' , async(req,res)=>{
-  let name =req.body.name 
+app.post('/menu', async (req, res) => {
+  let name = req.body.name;
   try {
-    const Menu = await menuModel.create({name})
-  res.status(201).json(Menu)
-} catch (error) {
-  console.log(error);
-}
+    if (!name) {
+      return res.status(400).json({ error: 'Name field is missing' });
+    }
 
-})
-app.get('/menu' , async(req,res)=>{
-  
+    const existingMenu = await menuModel.findOne({ name });
+    if (existingMenu) {
+      return res.status(400).json({ error: 'Menu with the same name already exists' });
+    }
+
+    const menu = await menuModel.create({ name });
+    res.status(201).json(menu);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// GET /menu
+app.get('/menu', async (req, res) => {
   try {
-    const Menu = await menuModel.find()
-  res.status(200).json(Menu)
-} catch (error) {
-  console.log(error);
-}
+    const menuItems = await menuModel.find();
+    res.status(200).json(menuItems);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
 
-})
-app.put('/menu' , async(req,res)=>{
-  let name =req.body.name 
+// PUT /menu
+app.put('/menu', async (req, res) => {
   try {
-    const Menu = await menuModel.findOne()
-  const newMenu = await Menu.update({name})
-  res.status(201).json(newMenu)
-} catch (error) {
-  console.log(error);
-}
+    const name = req.body.name;
 
-})
+    if (!name) {
+      return res.status(400).json({ error: 'Name field is missing' });
+    }
+
+    const existingMenu = await menuModel.findOne({ name });
+    if (existingMenu) {
+      return res.status(400).json({ error: 'Menu with the same name already exists' });
+    }
+
+    const menu = await menuModel.findOneAndUpdate({}, { name }, { new: true, upsert: true });
+    res.status(201).json(menu);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 
 app.get('/orders-count', async (req, res) => {
   let records = await Order.find();
@@ -243,12 +269,11 @@ app.get('/orders-count', async (req, res) => {
 });
 
 
-app.put('/external-orders', async (req, res) => {
+// POST /external-orders
+app.post('/external-orders', async (req, res) => {
   try {
-    let { increment } = req.body;
-    increment=parseInt(increment)
-    console.log(increment);
-    const externalOrder = await ExternalOrder.findOne();
+    const { increment } = req.body;
+    const externalOrder = await ExternalOrder.findOne({ email: 'mhmd.shrydh1996@gmail.com' });
 
     if (!externalOrder) {
       return res.status(404).json({ message: 'External order not found' });
@@ -256,12 +281,7 @@ app.put('/external-orders', async (req, res) => {
 
     if (increment && typeof increment === 'number' && increment >= 0) {
       externalOrder.numberOfExternalOrders = increment;
-     await externalOrder.save();
-   
-    }else if(increment == 0){
-      console.log('hello 00');
-      externalOrder.numberOfExternalOrders = increment;
-     await externalOrder.save();
+      await externalOrder.save();
     }
 
     res.json(externalOrder);
@@ -270,21 +290,23 @@ app.put('/external-orders', async (req, res) => {
     res.status(500).json({ message: 'Error updating number of external orders' });
   }
 });
+
+// GET /external-orders
 app.get('/external-orders', async (req, res) => {
-  
   try {
     const externalOrder = await ExternalOrder.findOne({ email: 'mhmd.shrydh1996@gmail.com' });
 
     if (!externalOrder) {
       return res.status(404).json({ message: 'External order not found' });
     }
-    
-       res.json(externalOrder);
+
+    res.json(externalOrder);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Error updating number of external orders' });
+    res.status(500).json({ message: 'Error retrieving number of external orders' });
   }
 });
+
 // Helper function to validate email format
 function isValidEmail(email) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -783,3 +805,8 @@ console.log(userId);
 server.listen(3001, () => {
   console.log(`Server is running on http://localhost:3001`);
 });
+
+module.exports = {
+  app :app,
+  menuModel,
+}
