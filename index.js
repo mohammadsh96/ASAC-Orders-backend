@@ -5,9 +5,9 @@ const mongoose = require('mongoose');
 require('dotenv').config();
 const cors = require('cors');
 const twilio = require('twilio');
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
-const clientz = twilio(accountSid, authToken);
+// const accountSid = process.env.TWILIO_ACCOUNT_SID || 'test';
+// const authToken = process.env.TWILIO_AUTH_TOKEN || 'test';
+// const clientz = twilio(accountSid, authToken) ;
 const app = express();
 const http = require('http');
 const {Server} = require('socket.io');
@@ -25,7 +25,7 @@ const io = new Server(server, {
 });
 const messageQueue = [];
 // Keep track of connected sockets
-const connectedSockets = [];
+const connectedSockets = []
 
 // Connect to MongoDB
 mongoose.connect('mongodb+srv://mohammadsh:PZqQNe0yM9qtXAWx@mohammadshcluster.bjrwqjp.mongodb.net/?retryWrites=true&w=majority', {
@@ -534,22 +534,22 @@ app.get('/send-calculations', async (req, res) => {
     // console.log((2-(orders.length * incrementValues)).toFixed(2));
     res.json(orders);
 
-if(orders){
-  try {
-    clientz.messages
-    .create({
-       from: 'whatsapp:+14155238886',
-       body: arr+ '\n----------------\n' +"total : " +total + '\n----------------\n' +arrFoods + '\n----------------\n' + countOrders,
-       to: 'whatsapp:+962795956190',
-       username: 'mhmd.shrydh1996@gmail.com'
+// if(orders){
+//   try {
+//     clientz.messages
+//     .create({
+//        from: 'whatsapp:+14155238886',
+//        body: arr+ '\n----------------\n' +"total : " +total + '\n----------------\n' +arrFoods + '\n----------------\n' + countOrders,
+//        to: 'whatsapp:+962795956190',
+//        username: 'mhmd.shrydh1996@gmail.com'
   
-     })
-    .then(message => console.log(message));
-  } catch (error) {
-    console.log(error);
-  }
+//      })
+//     .then(message => console.log(message));
+//   } catch (error) {
+//     console.log(error);
+//   }
 
-}
+// }
 
 
   } catch (err) {
