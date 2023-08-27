@@ -460,7 +460,7 @@ app.get('/send-calculations', async (req, res) => {
     let totalNumOrders=parseInt(Eorders[0].numberOfExternalOrders) + parseInt(orders.length-count)
     const incrementValues = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95, 1.00, 2.00, 2.00, 2.00];
 
-    let incrementIndex = (2.5 / totalNumOrders)
+    let incrementIndex = (2 / totalNumOrders)
 
     for (let i = 0; i < incrementValues.length; i++) {
 
